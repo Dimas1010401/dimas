@@ -1,0 +1,88 @@
+// ==UserScript==
+// @name         Google Dice Controller (Precision Range 3.4)
+// @namespace    http://tampermonkey.net
+// @version      3.4
+// @description  9 Dadu: Besar (32-39) & Kecil (25-31) - Anti Bocor Total
+// @author       User
+// @match        https://www.google.com*
+// @grant        none
+// @run-at       document-start
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    let mode = 'normal'; 
+    const originalRandom = Math.random;
+
+    // LOGIKA DISTRIBUSI PRESISI
+    Math.random = function() {
+        const r = originalRandom();
+        
+        if (mode === 'kecil') {
+            // TARGET TOTAL: 25 - 31 (Rata-rata per dadu 2.8 - 3.4)
+            // Dominasi angka 2, 3, 4. Angka 5 muncul tipis. Angka 6 BLOKIR.
+            const subR = originalRandom();
+            if (subR < 0.15) return 0.05; // Angka 1
+            if (subR < 0.40) return 0.20; // Angka 2
+            if (subR < 0.75) return 0.45; // Angka 3
+            if (subR < 0.93) return 0.60; // Angka 4
+            return 0.75;                  // Angka 5 (Maksimal angka 5 agar total tidak tembus 32)
+        }
+        
+        if (mode === 'besar') {
+            // TARGET TOTAL: 32 - 39 (Rata-rata per dadu 3.6 - 4.3)
+            // Dominasi angka 3, 4, 5. Angka 1 & 2 BLOKIR agar total tidak < 32.
+            const subR = originalRandom();
+            if (subR < 0.25) return 0.45; // Angka 3 (Batas bawah pengaman)
+            if (subR < 0.65) return 0.60; // Angka 4 (Paling Dominan)
+            if (subR < 0.90) return 0.75; // Angka 5 (Sering)
+            return 0.95;                  // Angka 6 (Sesekali)
+        }
+        
+        return r; 
+    };
+
+    // OTOMATIS 9 DADU BIRU
+    function setupNineDice() {
+        const d6Button = document.querySelector('div[jsname="v8pSle"]'); 
+        const currentDice = document.querySelectorAll('.Yv969b'); 
+        if (d6Button && currentDice.length < 9) {
+            for (let i = currentDice.length; i < 9; i++) { d6Button.click(); }
+        }
+    }
+
+    function createUI() {
+        const panel = document.createElement('div');
+        panel.style.cssText = "position:fixed; bottom:20px; left:20px; z-index:999999; background:rgba(32,33,36,0.95); color:white; padding:12px; border-radius:12px; font-family:sans-serif; border:1px solid #5f6368; box-shadow:0 8px 20px rgba(0,0,0,0.5);";
+        
+        panel.innerHTML = `
+            <div id="stts" style="text-align:center; font-weight:bold; margin-bottom:10px; font-size:11px;">PRECISION MODE v3.4</div>
+            <div style="display:flex; gap:8px;">
+                <button id="kcl" style="background:#ea4335; border:none; color:white; padding:8px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">KECIL (25-31)</button>
+                <button id="nrm" style="background:#5f6368; border:none; color:white; padding:8px 12px; border-radius:6px; cursor:pointer;">RESET</button>
+                <button id="bsr" style="background:#34a853; border:none; color:white; padding:8px 12px; border-radius:6px; cursor:pointer; font-weight:bold;">BESAR (32-39)</button>
+            </div>
+        `;
+        document.body.appendChild(panel);
+
+        const up = (m, txt, c) => { 
+            mode = m; 
+            const st = document.getElementById('stts');
+            st.innerText = txt;
+            st.style.color = c;
+        };
+
+        document.getElementById('kcl').onclick = () => up('kecil', 'FIX: 25 - 31', '#f28b82');
+        document.getElementById('nrm').onclick = () => up('normal', 'NORMAL', '#fff');
+        document.getElementById('bsr').onclick = () => up('besar', 'FIX: 32 - 39', '#81c995');
+    }
+
+    const init = setInterval(() => {
+        if (document.body) {
+            createUI();
+            setInterval(setupNineDice, 1500); 
+            clearInterval(init);
+        }
+    }, 100);
+    })();
